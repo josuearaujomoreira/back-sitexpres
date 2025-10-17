@@ -4,6 +4,9 @@
 docker compose build api
 docker compose up -d api
 
+#docker stop // rm 
+ docker run -d   --name api-siteexpres-container   -p 3000:3000   --env-file .env   api-siteexpres
+
 
 #cron vericar files
 ls -lh ~/backups/postgres/

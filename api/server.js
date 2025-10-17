@@ -3,22 +3,30 @@ import pg from "pg";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import 'dotenv/config'; 
 
 const { Pool } = pg;
 const app = express();
 
 // Middlewares
-app.use(cors());
 app.use(express.json());
+app.use(cors({
+  origin: ['http://localhost:8080', 'https://seusitefrontend.com', 'https://back.sitexpres.com.br','https://site-ai-launchpad.lovable.app/'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 
 // Configuração do banco
 const pool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "admin",
-  password: process.env.DB_PASSWORD || "123456",
-  database: process.env.DB_NAME || "meubanco",
-  port: process.env.DB_PORT || 5432,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
 });
+
 
 const JWT_SECRET = process.env.JWT_SECRET || "seu_secret_aqui_MUDE_EM_PRODUCAO";
 
@@ -61,7 +69,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     // Verificar se email já existe
     const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    
+
     if (userExists.rows.length > 0) {
       return res.status(400).json({
         success: false,
@@ -191,7 +199,7 @@ app.post("/api/auth/reset-password/confirm", async (req, res) => {
 
     // Verificar token
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     const tokenResult = await pool.query(
       'SELECT * FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()',
       [token]

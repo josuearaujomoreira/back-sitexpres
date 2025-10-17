@@ -1,5 +1,5 @@
-# api/Dockerfile
-FROM node:20
+# Dockerfile
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3000
+# Certifica que dotenv vai ler o .env
+ENV NODE_ENV=production
 
-CMD ["npm", "start"]
-
+CMD ["node", "server.js"]
