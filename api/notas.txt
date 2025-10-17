@@ -1,0 +1,9 @@
+3️⃣ Fazer rebuild da API sem tocar no banco
+
+# Fazer build da api-sitexpres  somente 
+docker compose build api
+docker compose up -d api
+
+
+#cron vericar files
+ls -lh ~/backups/postgres/
