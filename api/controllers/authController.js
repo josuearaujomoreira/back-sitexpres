@@ -54,43 +54,81 @@ export const resetpasswd = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Validação básica do email
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        message: "Email inválido"
+      });
+    }
+
+    console.log(`🔐 Solicitação de reset de senha para: ${email}`);
+
     // Verifica se o email existe
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    const result = await pool.query(
+      "SELECT id, email FROM users WHERE email = $1", 
+      [email.toLowerCase().trim()]
+    );
+
+    // Por segurança, sempre retorna a mesma mensagem (evita enumerar usuários)
+   
 
     if (result.rows.length === 0) {
-
-      console.log('Email inválido:'+email)
-
-      // Por segurança, retorna sucesso mesmo se o email não existir
+      console.log(`⚠️ Tentativa de reset para email não cadastrado: ${email}`);
+      // Retorna sucesso mesmo se não existir (segurança)
       return res.json({
-        success: true,
-        message: "Usuário não encontrado"
+        success: false,
+        message: 'Usuário não encontrado!'
       });
     }
 
     const user = result.rows[0];
 
-    // Cria um token temporário (1 hora)
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
+    // Limpa tokens antigos deste usuário antes de criar um novo
+    await pool.query(
+      "DELETE FROM password_reset_tokens WHERE user_id = $1",
+      [user.id]
+    );
+
+    // Cria um token de reset (não um token de autenticação!)
+    const resetToken = jwt.sign(
+      { 
+        userId: user.id,
+        type: 'password_reset', // Marca o tipo do token
+        email: user.email 
+      }, 
+      JWT_SECRET, 
+      { expiresIn: "1h" }
+    );
 
     // Salva o token no banco
     await pool.query(
-      "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')",
-      [user.id, token]
+      "INSERT INTO password_reset_tokens (user_id, token, expires_at, used) VALUES ($1, $2, NOW() + INTERVAL '1 hour', false)",
+      [user.id, resetToken]
     );
 
-    // Aqui você pode integrar um serviço de envio de email
-    console.log(`📧 Token de recuperação para ${email}: ${token}`);
-
+    // Log do token para desenvolvimento (remover em produção)
+    console.log(`📧 Token de recuperação gerado para ${email}`);
+    console.log(`🔗 Use este token na confirmação: ${resetToken}`);
+    
+    // TODO: Aqui você deve integrar um serviço de email (como Resend, SendGrid, etc)
+    // Exemplo de URL que seria enviada por email:
+    // const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
+    
     res.json({
       success: true,
-      message: "Email de recuperação enviado (token gerado com sucesso)"
+      message: genericMessage
     });
+
   } catch (error) {
-    console.error("Erro em resetpasswd:", error);
-    res.status(500).json({ success: false, message: "Erro ao processar recuperação de senha" });
+    console.error("❌ Erro em resetpasswd:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Erro ao processar recuperação de senha" 
+    });
   }
 };
+
 export const confirmResetPassword = async (req, res) => {
 
 }
