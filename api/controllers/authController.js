@@ -49,3 +49,48 @@ export const login = async (req, res) => {
     res.status(500).json({ success: false, message: "Erro ao fazer login" });
   }
 };
+
+export const resetpasswd = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Verifica se o email existe
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+
+    if (result.rows.length === 0) {
+
+      console.log('Email inválido:'+email)
+
+      // Por segurança, retorna sucesso mesmo se o email não existir
+      return res.json({
+        success: true,
+        message: "Usuário não encontrado"
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Cria um token temporário (1 hora)
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
+
+    // Salva o token no banco
+    await pool.query(
+      "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 hour')",
+      [user.id, token]
+    );
+
+    // Aqui você pode integrar um serviço de envio de email
+    console.log(`📧 Token de recuperação para ${email}: ${token}`);
+
+    res.json({
+      success: true,
+      message: "Email de recuperação enviado (token gerado com sucesso)"
+    });
+  } catch (error) {
+    console.error("Erro em resetpasswd:", error);
+    res.status(500).json({ success: false, message: "Erro ao processar recuperação de senha" });
+  }
+};
+export const confirmResetPassword = async (req, res) => {
+
+}
