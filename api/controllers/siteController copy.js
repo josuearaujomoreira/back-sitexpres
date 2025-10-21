@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 import Anthropic from "@anthropic-ai/sdk";
-import { v4 as uuidv4 } from "uuid";
+
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
@@ -43,63 +43,46 @@ function limparRetorno(codigo, parte) {
 
 
 // Função principal combinada
-// Jobs temporários em memória
-export const jobs = {}; // { jobId: { status, result, error } }
-
 export const newsite = async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    if (!prompt || !prompt.trim()) {
-      return res.status(400).json({ success: false, message: "Prompt não enviado" });
+    // 1️⃣ Se vier prompt, gera novo site
+    let novoSite = null;
+    if (prompt) {
+      const html = limparRetorno(await gerarParte(prompt, "HTML"), "HTML");
+      const css = limparRetorno(await gerarParte(prompt, "CSS"), "CSS");
+      const js = limparRetorno(await gerarParte(prompt, "JS"), "JS");
+
+      // Salva no banco
+      const insert = await pool.query(
+        `INSERT INTO generated_sites (user_id, name, prompt, html_content, css_content, js_content)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, prompt, created_at`,
+        [req.userId, `Site de ${prompt}`, prompt, html, css, js]
+      );
+      novoSite = insert.rows[0];
+    }else{
+      novoSite = 'Prompt não enviando...'
     }
 
-    // Cria jobId e status inicial
-    const jobId = uuidv4();
-    jobs[jobId] = { status: "processing", result: null, error: null };
+    // 2️⃣ Busca todos os sites existentes do usuário
+    const result = await pool.query(
+      "SELECT id, name, prompt, views, created_at FROM generated_sites WHERE user_id = $1 ORDER BY created_at DESC",
+      [req.userId]
+    );
 
-    // Responde imediatamente para o frontend
-    res.json({ success: true, jobId });
-
-    // Processa em background
-    (async () => {
-      try {
-        const html = limparRetorno(await gerarParte(prompt, "HTML"), "HTML");
-        const css = limparRetorno(await gerarParte(prompt, "CSS"), "CSS");
-        const js = limparRetorno(await gerarParte(prompt, "JS"), "JS");
-
-        // Salva no banco
-        const insert = await pool.query(
-          `INSERT INTO generated_sites 
-           (user_id, name, prompt, html_content, css_content, js_content)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, name, prompt, html_content, css_content, js_content, created_at`,
-          [req.userId, `Site de ${prompt}`, prompt, html, css, js]
-        );
-
-        jobs[jobId] = { status: "done", result: insert.rows[0], error: null };
-      } catch (error) {
-        console.error(error);
-        jobs[jobId] = { status: "error", result: null, error: error.message };
-      }
-    })();
-
+    res.json({ success: true, sites: result.rows, newSite: novoSite });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Erro ao criar job" });
+    res.status(500).json({ success: false, message: "Erro ao gerar/buscar sites" });
   }
 };
 
-// Rota para verificar status do job
-export const jobStatus = (req, res) => {
-  const { jobId } = req.params;
-  const job = jobs[jobId];
-  if (!job) return res.status(404).json({ success: false, message: "Job não encontrado" });
-  res.json({ success: true, job });
-};
+
+
 
 export const getSites = async (req, res) => {
-  try {
+  try { 
     const result = await pool.query(
       "SELECT id, name, prompt, views, created_at FROM generated_sites WHERE user_id = $1 ORDER BY created_at DESC",
       [req.userId]

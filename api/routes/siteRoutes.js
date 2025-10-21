@@ -1,10 +1,14 @@
 import express from "express";
-import { getSites, newsite } from "../controllers/siteController.js";
+import { getSites, newsite,jobStatus } from "../controllers/siteController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/gerar_new_site", authMiddleware, newsite);
-router.get("/", authMiddleware, getSites);
 
+
+router.post("/gerar_new_site", authMiddleware, newsite);
+router.get("/job-status/:jobId", authMiddleware, jobStatus);  //gerando site assincrono
+router.get("/", authMiddleware, getSites);
+router.get("/teste", (req, res) => res.send("rota ok"));
+router.get("/crente", (req, res) => res.send("rota ok"));
 export default router;

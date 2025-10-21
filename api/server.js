@@ -27,13 +27,26 @@ app.get("/dbtest", async (req, res) => {
 });
 
 // Rotas principais
-app.use("/api/reset-password ", authRoutes);
+app.use("/api/reset-password", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
+
 
 // Rota padrão
 app.get("/", (req, res) => {
   res.send("awaiting command");
+});
+
+app.get('/teste-lento', async (req, res) => {
+  console.log("🔹 Requisição recebida em /teste-lento");
+
+  // Espera 120 segundos (2 minutos)
+  await new Promise(resolve => setTimeout(resolve, 150000));
+
+  res.json({
+    success: true,
+    message: "✅ Endpoint lento respondeu depois de 120 segundos!"
+  });
 });
 
 const PORT = process.env.PORT || 3000;
