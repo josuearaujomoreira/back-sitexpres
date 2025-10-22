@@ -13,7 +13,7 @@ const MAX_TOKENS = 20000;
 async function gerarParte(prompt, parte) {
   const systemPrompt = `
 Você é um designer e desenvolvedor profissional de sites modernos.
-Gere SOMENTE o ${parte} completo do site: ${prompt}.
+completo do site: ${prompt}.
 Use HTML5, CSS3 moderno e JS funcional.
 Inclua imagens reais ou placeholders de alta qualidade.
 O site deve ser responsivo e em português.
@@ -65,8 +65,8 @@ export const newsite = async (req, res) => {
     (async () => {
       try {
         const html = limparRetorno(await gerarParte(prompt, "HTML"), "HTML");
-        const css = limparRetorno(await gerarParte(prompt, "CSS"), "CSS");
-        const js = limparRetorno(await gerarParte(prompt, "JS"), "JS");
+        const css = '' //limparRetorno(await gerarParte(prompt, "CSS"), "CSS");
+        const js = ''// limparRetorno(await gerarParte(prompt, "JS"), "JS");
 
         // Salva no banco
         const insert = await pool.query(
