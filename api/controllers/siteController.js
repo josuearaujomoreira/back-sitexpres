@@ -12,13 +12,14 @@ const MAX_TOKENS = 20000;
 // Função para gerar cada parte do site
 async function gerarParte(prompt, parte) {
   const systemPrompt = `
-Você é um designer e desenvolvedor profissional de sites modernos.
-completo do site: ${prompt}.
-Use HTML5, CSS3 moderno e JS funcional.
-Inclua imagens reais ou placeholders de alta qualidade.
-O site deve ser responsivo e em português.
-Responda apenas com código puro, sem markdown ou explicações.
-`;
+      Você é um designer e desenvolvedor profissional de sites modernos.
+      completo do site: ${prompt}.
+      Use HTML5, CSS3 moderno e JS funcional.
+      Inclua imagens reais ou placeholders de alta qualidade.
+      O site deve ser responsivo e em português.
+      se prescisar use imagens de placeholder confiáveis, como https://picsum.photos ou https://loremflickr.com, com palavras-chave relevantes.
+      Responda apenas com código puro, sem markdown ou explicações.
+      `;
 
   const message = await anthropic.messages.create({
     model: MODEL,
