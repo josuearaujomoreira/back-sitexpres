@@ -49,7 +49,7 @@ export const jobs = {}; // { jobId: { status, result, error } }
 
 export const newsite = async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, id_projeto } = req.body;
 
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({ success: false, message: "Prompt não enviado" });
@@ -72,11 +72,21 @@ export const newsite = async (req, res) => {
         // Salva no banco
         const insert = await pool.query(
           `INSERT INTO generated_sites 
-           (user_id, name, prompt, html_content, css_content, js_content)
-           VALUES ($1, $2, $3, $4, $5, $6)
+           (user_id, name, prompt, html_content, css_content, js_content,id_projeto)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id, name, prompt, html_content, css_content, js_content, created_at`,
-          [req.userId, `Site de ${prompt}`, prompt, html, css, js]
+          [req.userId, `Site de ${prompt}`, prompt, html, css, js, id_projeto]
         );
+
+        const site = insert.rows[0];
+
+        // Salva o prompt em tabela separada
+        await pool.query(
+          `INSERT INTO site_prompts (user_id, id_projeto, prompt)
+       VALUES ($1, $2, $3)`,
+          [req.userId, id_projeto, prompt]
+        );
+
 
         jobs[jobId] = { status: "done", result: insert.rows[0], error: null };
       } catch (error) {
