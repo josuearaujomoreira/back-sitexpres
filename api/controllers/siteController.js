@@ -17,7 +17,9 @@ async function gerarParte(prompt, parte) {
       Use HTML5, CSS3 moderno e JS funcional.
       Inclua imagens reais ou placeholders de alta qualidade.
       O site deve ser responsivo e em português.
-      se prescisar use imagens de placeholder confiáveis, como https://picsum.photos ou https://loremflickr.com, com palavras-chave relevantes.
+      se prescisar inclua imagens reais que correspondam exatamente ao tema do site. 
+      Se usar placeholder, a palavra-chave deve corresponder ao tema. 
+      Nunca use imagens fora do contexto..
       Responda apenas com código puro, sem markdown ou explicações.
       `;
 
@@ -40,8 +42,6 @@ function limparRetorno(codigo, parte) {
   }
   return codigo.trim();
 }
-
-
 
 // Função principal combinada
 // Jobs temporários em memória
@@ -75,7 +75,7 @@ export const newsite = async (req, res) => {
            (user_id, name, prompt, html_content, css_content, js_content,id_projeto)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id, name, prompt, html_content, css_content, js_content, created_at`,
-          [req.userId, `Site de ${prompt}`, prompt, html, css, js, id_projeto]
+          [req.userId, `Site de ${prompt}`, 'siteTitle', html, css, js, id_projeto]
         );
 
         const site = insert.rows[0];
