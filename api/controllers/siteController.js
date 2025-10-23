@@ -13,6 +13,14 @@ const MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 20000;
 
 // Função para gerar cada parte do site
+// Função para limpar blocos de markdown ou tags extras
+function limparRetorno(codigo) {
+  // Remove ```html, ```css, ```js e ```
+  codigo = codigo.replace(/```(?:html|css|js)?\n?/gi, "");
+  codigo = codigo.replace(/```/g, "");
+  return codigo.trim();
+}
+
 export async function gerarParte(prompt, parte, req, id_projeto) {
   try {
     let systemPrompt = `
@@ -21,7 +29,7 @@ Crie um site completo baseado na descrição: "${prompt}".
 Use HTML5, CSS3 moderno e JavaScript funcional.
 Inclua imagens reais ou placeholders de alta qualidade relacionadas ao tema.
 O site deve ser responsivo e em português.
-Responda apenas com código HTML puro, sem markdown nem explicações.
+⚠️ Responda apenas com código HTML puro, sem markdown nem explicações.
     `;
 
     let text = "";
@@ -41,12 +49,13 @@ Responda apenas com código HTML puro, sem markdown nem explicações.
       text = message.content[0].type === "text" ? message.content[0].text : "";
     }
 
-    return text.trim();
+    return limparRetorno(text); // ✅ já limpa possíveis ```html
   } catch (error) {
     console.error("Erro ao gerar parte do site:", error);
     return "<!-- Erro ao gerar conteúdo -->";
   }
 }
+
 
 
 // Limpeza de markdown ou tags extras
