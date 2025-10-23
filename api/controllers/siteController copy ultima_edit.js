@@ -1,53 +1,37 @@
 import pool from "../config/db.js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { v4 as uuidv4 } from "uuid";
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
-const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY);
-const USE_GEMINI = true;
 
 const MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 20000;
 
 // Função para gerar cada parte do site
-export async function gerarParte(prompt, parte, req, id_projeto) {
-  try {
-    let systemPrompt = `
-Você é um designer e desenvolvedor profissional de sites modernos.
-Crie um site completo baseado na descrição: "${prompt}".
-Use HTML5, CSS3 moderno e JavaScript funcional.
-Inclua imagens reais ou placeholders de alta qualidade relacionadas ao tema.
-O site deve ser responsivo e em português.
-Responda apenas com código HTML puro, sem markdown nem explicações.
-    `;
+async function gerarParte(prompt, parte) {
+  const systemPrompt = `
+      Você é um designer e desenvolvedor profissional de sites modernos.
+      completo do site: ${prompt}.
+      Use HTML5, CSS3 moderno e JS funcional.
+      Inclua imagens reais ou placeholders de alta qualidade.
+      O site deve ser responsivo e em português.
+      se prescisar inclua imagens reais que correspondam exatamente ao tema do site. 
+      Se usar placeholder, a palavra-chave deve corresponder ao tema. 
+      Nunca use imagens fora do contexto..
+      Responda apenas com código puro, sem markdown ou explicações.
+      `;
 
-    let text = "";
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    messages: [{ role: "user", content: systemPrompt }],
+  });
 
-    if (USE_GEMINI) {
-      // 🧠 Gemini 2.5 PRO
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-      const result = await model.generateContent(systemPrompt);
-      text = result.response.text();
-    } else {
-      // 🤖 Claude
-      const message = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 8000,
-        messages: [{ role: "user", content: systemPrompt }],
-      });
-      text = message.content[0].type === "text" ? message.content[0].text : "";
-    }
-
-    return text.trim();
-  } catch (error) {
-    console.error("Erro ao gerar parte do site:", error);
-    return "<!-- Erro ao gerar conteúdo -->";
-  }
+  const text = message.content[0].type === "text" ? message.content[0].text : "";
+  return text.trim();
 }
-
 
 // Limpeza de markdown ou tags extras
 function limparRetorno(codigo, parte) {
@@ -71,25 +55,51 @@ export const newsite = async (req, res) => {
       return res.status(400).json({ success: false, message: "Prompt não enviado" });
     }
 
+    // Cria jobId e status inicial
     const jobId = uuidv4();
     jobs[jobId] = { status: "processing", result: null, error: null };
+
+    // Responde imediatamente para o frontend
     res.json({ success: true, jobId });
 
+    // Processa em background
     (async () => {
       try {
-        const site = await gerarParte(prompt, "HTML", req, id_projeto);
-        jobs[jobId] = { status: "done", result: site, error: null };
+        const html = limparRetorno(await gerarParte(prompt, "HTML"), "HTML");
+        const css = '' //limparRetorno(await gerarParte(prompt, "CSS"), "CSS");
+        const js = ''// limparRetorno(await gerarParte(prompt, "JS"), "JS");
+
+        // Salva no banco
+        const insert = await pool.query(
+          `INSERT INTO generated_sites 
+           (user_id, name, prompt, html_content, css_content, js_content,id_projeto)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, name, prompt, html_content, css_content, js_content, created_at`,
+          [req.userId, `Site de ${prompt}`, 'siteTitle', html, css, js, id_projeto]
+        );
+
+        const site = insert.rows[0];
+
+        // Salva o prompt em tabela separada
+        await pool.query(
+          `INSERT INTO site_prompts (user_id, id_projeto, prompt)
+       VALUES ($1, $2, $3)`,
+          [req.userId, id_projeto, prompt]
+        );
+
+
+        jobs[jobId] = { status: "done", result: insert.rows[0], error: null };
       } catch (error) {
         console.error(error);
         jobs[jobId] = { status: "error", result: null, error: error.message };
       }
     })();
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Erro ao criar job" });
   }
 };
-
 
 // Rota para verificar status do job
 export const jobStatus = (req, res) => {

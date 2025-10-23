@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.67.0",
+    "@google/generative-ai": "^0.14.1",
     "uuid": "^9.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
