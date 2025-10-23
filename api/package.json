@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "API para integração com Docker e PostgreSQL",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
