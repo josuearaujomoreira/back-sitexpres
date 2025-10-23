@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
-const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const USE_GEMINI = true;
 
 const MODEL = "claude-haiku-4-5-20251001";
