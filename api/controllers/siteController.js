@@ -59,14 +59,14 @@ O site deve ser responsivo e em português.
 
 
 // Limpeza de markdown ou tags extras
-function limparRetorno(codigo, parte) {
+/* function limparRetorno(codigo, parte) {
   codigo = codigo.replace(/```(?:html|css|js)?\n?/gi, "");
   codigo = codigo.replace(/```/g, "");
   if (parte === "CSS" || parte === "JS") {
     codigo = codigo.replace(/<[^>]+>/g, "");
   }
   return codigo.trim();
-}
+} */
 
 // Função principal combinada
 // Jobs temporários em memória
