@@ -30,7 +30,7 @@ app.get("/dbtest", async (req, res) => {
 app.use("/api/reset-password", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
-
+app.use("/uploads", express.static("uploads"));
 
 // Rota padrão
 app.get("/", (req, res) => {

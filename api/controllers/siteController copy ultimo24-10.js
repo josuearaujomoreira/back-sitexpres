@@ -78,7 +78,6 @@ export const jobs = {}; // { jobId: { status, result, error } }
 export const newsite = async (req, res) => {
   try {
     const { prompt, id_projeto } = req.body;
-    const imageFile = req.file ? `/uploads/images/${req.file.filename}` : null;
 
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({ success: false, message: "Prompt não enviado" });
@@ -93,6 +92,7 @@ export const newsite = async (req, res) => {
       try {
         client = await pool.connect();
 
+        // ✅ Verifica se já existe id_projeto
         const existing = await client.query(
           `SELECT html_content FROM generated_sites 
            WHERE id_projeto = $1 
@@ -102,25 +102,26 @@ export const newsite = async (req, res) => {
 
         let baseHTML = existing.rows.length > 0 ? existing.rows[0].html_content : "";
 
-        // Se houver imagem, passa a URL no prompt para a IA
-        const fullPrompt = imageFile
-          ? `${prompt}\nUse esta imagem no site: ${imageFile}`
+        // ✅ Se tiver baseHTML, podemos enviar para Claude/Gemini junto com o prompt para alterações
+        const fullPrompt = baseHTML
+          ? `Aqui está o HTML existente:\n${baseHTML}\nFaça as alterações solicitadas: ${prompt}`
           : prompt;
 
-        const finalPrompt = baseHTML
-          ? `HTML atual:\n${baseHTML}\nFaça as alterações solicitadas: ${fullPrompt}`
-          : fullPrompt;
+        // ✅ Gera HTML (Claude/Gemini)
+        const html = await gerarParte(fullPrompt, "HTML", req, id_projeto);
+        const css = ''; // opcional, se for gerar CSS
+        const js = '';  // opcional, se for gerar JS
 
-        const html = await gerarParte(finalPrompt, "HTML", req, id_projeto);
-
+        // ✅ Salva a nova versão no generated_sites
         const insertSite = await client.query(
           `INSERT INTO generated_sites 
-           (user_id, name, prompt, html_content, id_projeto, image_path)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, name, prompt, html_content, created_at`,
-          [req.userId, `Site de ${prompt}`, prompt, html, id_projeto, imageFile]
+           (user_id, name, prompt, html_content, css_content, js_content, id_projeto)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, name, prompt, html_content, css_content, js_content, created_at`,
+          [req.userId, `Site de ${prompt}`, prompt, html, css, js, id_projeto]
         );
 
+        // ✅ Salva o prompt na tabela site_prompts
         await client.query(
           `INSERT INTO site_prompts (user_id, id_projeto, prompt)
            VALUES ($1, $2, $3)`,
