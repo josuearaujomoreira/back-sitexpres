@@ -24,7 +24,7 @@ function limparRetorno(codigo) {
 
 export async function gerarParte(prompt, parte, req, id_projeto) {
   try {
-    const systemPrompt = `
+    let systemPrompt = `
 Você é um designer e desenvolvedor profissional de sites modernos.
 Crie um site completo baseado na descrição: "${prompt}".
 Use HTML5, CSS3 moderno e JavaScript funcional.
@@ -33,45 +33,34 @@ O site deve ser responsivo e em português.
 ***Instruções Cruciais para Imagens e Conteúdo:***
 1.  **Imagens:** Inclua placeholders de alta qualidade relacionados ao tema. Para garantir relevância, use serviços de placeholder que permitem temas (ex: source.unsplash.com/random/800x600?car,sport ou via.placeholder.com/800x600?text=Nome+do+Item).
 2.  **ALT:** O texto ALT de todas as imagens deve ser sempre **muito descritivo** do que a imagem representa para evitar confusão se a imagem falhar.
-3.  **Rodapé:** O ano no rodapé (copyright) deve ser **o ano atual**.
+3.  **Rodapé:** O ano no rodapé (copyright) deve ser **o ano atual** e não 2024.
 
-⚠️ Responda apenas com código HTML puro, sem markdown nem explicações.
-`;
+⚠️ Responda apenas com código HTML puro, sem markdown nem explicações. `;
 
-    let html = "";
+    let text = "";
 
     if (USE_GEMINI) {
       // 🧠 Gemini 2.5 PRO
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
       const result = await model.generateContent(systemPrompt);
-      html = result.response.text();
+      text = result.response.text();
     } else {
-      // 🤖 Claude com streaming
-      const controller = new AbortController();
-
-      const stream = await anthropic.messages.create({
+      // 🤖 Claude
+      const message = await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 60000,
+        max_tokens: 22000,
         messages: [{ role: "user", content: systemPrompt }],
-        stream: true,
-        signal: controller.signal
       });
-
-      // Recebe chunks enquanto o modelo envia
-      for await (const event of stream) {
-        if (event.type === "response.output_text.delta") {
-          html += event.delta; // concatena os pedaços
-        }
-      }
+      text = message.content[0].type === "text" ? message.content[0].text : "";
     }
 
-    return limparRetorno(html); // ✅ já limpa possíveis ```html
-
+    return limparRetorno(text); // ✅ já limpa possíveis ```html
   } catch (error) {
     console.error("Erro ao gerar parte do site:", error);
     return "<!-- Erro ao gerar conteúdo -->";
   }
 }
+
 // Limpeza de markdown ou tags extras
 /* function limparRetorno(codigo, parte) {
   codigo = codigo.replace(/```(?:html|css|js)?\n?/gi, "");

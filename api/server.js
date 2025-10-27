@@ -4,6 +4,8 @@ import 'dotenv/config';
 import pool from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import siteRoutes from "./routes/siteRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 
@@ -15,6 +17,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+app.use(express.urlencoded({ extended: true }));
 
 // Teste de conexão
 app.get("/dbtest", async (req, res) => {
@@ -30,7 +33,12 @@ app.get("/dbtest", async (req, res) => {
 app.use("/api/reset-password", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
-app.use("/uploads", express.static("uploads"));
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Servir arquivos estáticos da pasta uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Rota padrão
 app.get("/", (req, res) => {
