@@ -2,8 +2,7 @@ import pool from "../config/db.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { v4 as uuidv4 } from "uuid";
-import { criarSubdominioDirectAdmin, enviarHTMLSubdominio } from "./integracao_directadmin.js";
- 
+import { criarContaDirectAdmin, enviarHTMLFTP } from "./integracao_directadmin.js";
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
@@ -92,6 +91,15 @@ O site deve ser responsivo e em português.
 
 
 
+// Limpeza de markdown ou tags extras
+/* function limparRetorno(codigo, parte) {
+  codigo = codigo.replace(/```(?:html|css|js)?\n?/gi, "");
+  codigo = codigo.replace(/```/g, "");
+  if (parte === "CSS" || parte === "JS") {
+    codigo = codigo.replace(/<[^>]+>/g, "");
+  }
+  return codigo.trim();
+} */
 
 // Função principal combinada
 // Jobs temporários em memória
@@ -102,14 +110,16 @@ export const newsite = async (req, res) => {
     const { prompt, id_projeto } = req.body;
     const imageFile = req.file ? `/uploads/images/${req.file.filename}` : null;
 
+    // URL base padrão
     const baseURL = "https://back.sitexpres.com.br/uploads/logos/";
+
+    // URL completa da imagem
     const imageURL = req.file ? `${baseURL}${req.file.filename}` : null;
 
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({ success: false, message: "Prompt não enviado" });
     }
 
-    // Cria job
     const jobId = uuidv4();
     jobs[jobId] = { status: "processing", result: null, error: null };
     res.json({ success: true, jobId });
@@ -119,46 +129,33 @@ export const newsite = async (req, res) => {
       try {
         client = await pool.connect();
 
-        // Verifica se já existe site gerado
         const existing = await client.query(
-          `SELECT id, name, html_content FROM generated_sites 
+          `SELECT html_content FROM generated_sites 
            WHERE id_projeto = $1 
            ORDER BY created_at DESC LIMIT 1`,
           [id_projeto]
         );
 
-        const primeiraVez = existing.rows.length === 0;
-        const baseHTML = primeiraVez ? "" : existing.rows[0].html_content;
+        let baseHTML = existing.rows.length > 0 ? existing.rows[0].html_content : "";
 
-        // Monta prompt final para a IA
+        // Se houver imagem, passa a URL no prompt para a IA
         const fullPrompt = imageURL
-          ? `${prompt}\nUse esta URL da imagem no site: ${imageURL}`
+          ? `${prompt}\nUse esta url da imagem no site: ${imageURL}`
           : prompt;
 
         const finalPrompt = baseHTML
           ? `HTML atual:\n${baseHTML}\nFaça as alterações solicitadas: ${fullPrompt}`
           : fullPrompt;
 
-        // Gera HTML
         const html = await gerarParte(finalPrompt, "HTML", req, id_projeto);
+        const primeiraVez = existing.rows.length === 0;
 
-        // Gera nome do subdomínio via IA
-        let nomeSubdominio;
-        if (primeiraVez) {
-          nomeSubdominio = await gerarNomeSubdominio(prompt);
-          // Cria subdomínio no DirectAdmin
-          await criarSubdominioDirectAdmin(nomeSubdominio, "sitexpres.com.br");
-        } else {
-          nomeSubdominio = existing.rows[0].name.replace("Site de ", "").toLowerCase();
-        }
-
-        // Insere registro no banco
         const insertSite = await client.query(
           `INSERT INTO generated_sites 
            (user_id, name, prompt, html_content, id_projeto, image_path)
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id, name, prompt, html_content, created_at`,
-          [req.userId, `Site de ${nomeSubdominio}`, prompt, html, id_projeto, imageURL]
+          [req.userId, `Site de ${prompt}`, prompt, html, id_projeto, imageURL]
         );
 
         await client.query(
@@ -166,18 +163,15 @@ export const newsite = async (req, res) => {
            VALUES ($1, $2, $3)`,
           [req.userId, id_projeto, prompt]
         );
+        
+        if (primeiraVez) {
+          await criarContaDirectAdmin(`user${id_projeto}`, "Senha123!", `site${id_projeto}.seudominio.com`);
+        }
 
-        // Envia ou atualiza HTML no subdomínio
-        await enviarHTMLSubdominio(
-          "ftp.sitexpres.com.br",
-          "usuario_da_conta",      // seu usuário do DirectAdmin
-          "senha_da_conta",        // senha
-          nomeSubdominio,
-          html
-        );
+        await enviarHTMLFTP("ftp.seudominio.com", `user${id_projeto}`, "Senha123!", html);
+
 
         jobs[jobId] = { status: "done", result: insertSite.rows[0], error: null };
-
       } catch (error) {
         console.error(error);
         jobs[jobId] = { status: "error", result: null, error: error.message };
@@ -185,13 +179,11 @@ export const newsite = async (req, res) => {
         if (client) client.release();
       }
     })();
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Erro ao criar job" });
   }
 };
-
 
 // Rota para verificar status do job
 export const jobStatus = (req, res) => {
@@ -260,32 +252,3 @@ export const check_id_projeto = async (req, res) => {
     }
   }
 };
-
-export async function gerarNomeSubdominio(prompt) {
-  try {
-    const systemPrompt = `
-      Você é um assistente que sugere nomes curtos, únicos e descritivos para projetos de sites.
-      Retorne apenas uma palavra ou combinação curta sem espaços ou caracteres especiais,
-      adequada para ser usada como subdomínio.
-      Exemplo: "site de carro" → "sitecarro"
-    `;
-
-    const response = await anthropic.complete({
-      model: "claude-haiku-4-5-2025100",           // ou o modelo que você usa
-      prompt: `${systemPrompt}\nPrompt do projeto: ${prompt}\nNome do subdomínio:`,
-      max_tokens_to_sample: 400,
-      stop_sequences: ["\n"]
-    });
-
-    // A resposta da IA pode vir com quebras de linha, espaços extras, etc.
-    const nome = response.completion.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    // Limita a 15 caracteres
-    return nome.length > 15 ? nome.substring(0, 15) : nome;
-
-  } catch (err) {
-    console.error("Erro ao gerar nome do subdomínio via IA:", err);
-    // fallback manual
-    return prompt.toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 15);
-  }
-}
