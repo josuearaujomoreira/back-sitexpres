@@ -1,5 +1,5 @@
 import express from "express";
-import { getSites, newsite, jobStatus, check_id_projeto } from "../controllers/siteController.js";
+import { getSites, newsite, jobStatus, check_id_projeto, testecret_domin,list_don } from "../controllers/siteController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/upload.js";
 const router = express.Router();
@@ -12,5 +12,6 @@ router.get("/job-status/:jobId", authMiddleware, jobStatus);  //gerando site ass
 router.get("/", authMiddleware, getSites);
 router.get("/teste", (req, res) => res.send("rota ok"));
 router.get("/check_id_projeto/:id_projeto", check_id_projeto);
+router.post("/testedom", testecret_domin); 
 
 export default router;

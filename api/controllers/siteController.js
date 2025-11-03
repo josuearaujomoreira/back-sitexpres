@@ -2,8 +2,12 @@ import pool from "../config/db.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { v4 as uuidv4 } from "uuid";
-import { criarSubdominioDirectAdmin, enviarHTMLSubdominio } from "./integracao_directadmin.js";
- 
+import fs from "fs/promises";
+import path from "path";
+import ftp from "basic-ftp";
+import { criarSubdominioDirectAdmin, enviarHTMLSubdominio, subdominioExiste } from "./integracao_directadmin.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
@@ -27,18 +31,18 @@ function limparRetorno(codigo) {
 export async function gerarParte(prompt, parte, req, id_projeto) {
   try {
     const systemPrompt = `
-Você é um designer e desenvolvedor profissional de sites modernos.
-Crie um site completo baseado na descrição: "${prompt}".
-Use HTML5, CSS3 moderno e JavaScript funcional.
-O site deve ser responsivo e em português.
+      Você é um designer e desenvolvedor profissional de sites modernos.
+      Crie um site completo baseado na descrição: "${prompt}".
+      Use HTML5, CSS3 moderno e JavaScript funcional.
+      O site deve ser responsivo e em português.
 
-***Instruções Cruciais para Imagens e Conteúdo:***
-1. **Imagens:** Inclua placeholders de alta qualidade relacionados ao tema. Para garantir relevância, use serviços de placeholder que permitem temas (ex: source.unsplash.com/random/800x600?car,sport ou via.placeholder.com/800x600?text=Nome+do+Item).
-2. **ALT:** O texto ALT de todas as imagens deve ser sempre **muito descritivo** do que a imagem representa para evitar confusão se a imagem falhar.
-3. **Rodapé:** O ano no rodapé (copyright) deve ser **o ano atual**.
+      ***Instruções Cruciais para Imagens e Conteúdo:***
+      1. **Imagens:** Inclua placeholders de alta qualidade relacionados ao tema. Para garantir relevância, use serviços de placeholder que permitem temas (ex: source.unsplash.com/random/800x600?car,sport ou via.placeholder.com/800x600?text=Nome+do+Item).
+      2. **ALT:** O texto ALT de todas as imagens deve ser sempre **muito descritivo** do que a imagem representa para evitar confusão se a imagem falhar.
+      3. **Rodapé:** O ano no rodapé (copyright) deve ser **o ano atual**.
 
-⚠️ Responda apenas com código HTML puro, sem markdown nem explicações.
-`;
+      ⚠️ Responda apenas com código HTML puro, sem markdown nem explicações.
+      `;
 
     let html = "";
 
@@ -91,8 +95,6 @@ O site deve ser responsivo e em português.
 }
 
 
-
-
 // Função principal combinada
 // Jobs temporários em memória
 export const jobs = {}; // { jobId: { status, result, error } }
@@ -140,7 +142,7 @@ export const newsite = async (req, res) => {
           : fullPrompt;
 
         // Gera HTML
-        const html = await gerarParte(finalPrompt, "HTML", req, id_projeto);
+        const html = '<h1>Sitee script gerado por IA</h1>' //await gerarParte(finalPrompt, "HTML", req, id_projeto);
 
         // Gera nome do subdomínio via IA
         let nomeSubdominio;
@@ -170,9 +172,9 @@ export const newsite = async (req, res) => {
         // Envia ou atualiza HTML no subdomínio
         await enviarHTMLSubdominio(
           "ftp.sitexpres.com.br",
-          "usuario_da_conta",      // seu usuário do DirectAdmin
-          "senha_da_conta",        // senha
-          nomeSubdominio,
+          process.env.user_directamin,
+          process.env.pass_directamin,
+          nomeSubdominio + '.sitexpres.com.br',
           html
         );
 
@@ -261,6 +263,7 @@ export const check_id_projeto = async (req, res) => {
   }
 };
 
+
 export async function gerarNomeSubdominio(prompt) {
   try {
     const systemPrompt = `
@@ -270,17 +273,19 @@ export async function gerarNomeSubdominio(prompt) {
       Exemplo: "site de carro" → "sitecarro"
     `;
 
-    const response = await anthropic.complete({
-      model: "claude-haiku-4-5-2025100",           // ou o modelo que você usa
-      prompt: `${systemPrompt}\nPrompt do projeto: ${prompt}\nNome do subdomínio:`,
-      max_tokens_to_sample: 400,
-      stop_sequences: ["\n"]
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",        // modelo atualizado
+      system: systemPrompt,     // <-- aqui é o system prompt
+      messages: [
+        { role: "user", content: `Prompt do projeto: ${prompt}\nNome do subdomínio:` }
+      ],
+      max_tokens: 1000,
     });
 
-    // A resposta da IA pode vir com quebras de linha, espaços extras, etc.
-    const nome = response.completion.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    // A resposta vem em response.content[0].text
+    const nomeGerado = response.content?.[0]?.text || "";
+    const nome = nomeGerado.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    // Limita a 15 caracteres
     return nome.length > 15 ? nome.substring(0, 15) : nome;
 
   } catch (err) {
@@ -289,3 +294,111 @@ export async function gerarNomeSubdominio(prompt) {
     return prompt.toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 15);
   }
 }
+
+
+export const testecret_domin = async (req, res) => {
+  try {
+    const { subdominio } = req.body;
+
+    if (!subdominio) {
+      return res.status(400).json({ error: "Informe o subdomínio desejado." });
+    }
+
+    console.log("➡️ Criando subdomínio:", subdominio);
+
+    // 1️⃣ Cria o subdomínio via DirectAdmin
+    const respostaCriacao = await criarSubdominioDirectAdmin(subdominio, "sitexpres.com.br");
+    console.log("✅ Subdomínio criado com resposta:", respostaCriacao);
+
+    // 2️⃣ Gera o HTML temporário
+    const htmlExemplo = `
+      <!DOCTYPE html>
+      <html lang="pt-br">
+        <head>
+          <meta charset="UTF-8">
+          <title>Bem-vindo ao subdomínio ${subdominio}.sitexpres.com.br</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              background: linear-gradient(135deg, #6e8efb, #a777e3);
+              color: #fff;
+              text-align: center;
+              padding-top: 100px;
+            }
+            h1 {
+              font-size: 2.5em;
+            }
+            p {
+              font-size: 1.2em;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Subdomínio criado com sucesso!</h1>
+          <p>Este é um exemplo de página HTML enviada automaticamente.</p>
+          <p><b>Subdomínio:</b> ${subdominio}.sitexpres.com.br</p>
+        </body>
+      </html>
+    `;
+
+    console.log("📄 Gerando arquivo temporário HTML...");
+    const tempPath = path.join("/tmp", `${subdominio}.html`);
+    await fs.writeFile(tempPath, htmlExemplo);
+
+    // 3️⃣ Envia o arquivo via FTP
+    console.log("📤 Enviando HTML para o subdomínio via FTP...");
+
+    const client = new ftp.Client();
+    client.ftp.verbose = true;
+
+    try {
+      await client.access({
+        host: "143.208.8.36",
+        user: process.env.user_directamin,
+        password: process.env.pass_directamin,
+        port: 21,
+      });
+
+      const remotePath = `/domains/${subdominio}.sitexpres.com.br/public_html/index.html`;
+      await client.ensureDir(`/domains/${subdominio}.sitexpres.com.br/public_html`);
+      await client.uploadFrom(tempPath, remotePath);
+      console.log("✅ HTML enviado com sucesso!");
+    } catch (ftpError) {
+      console.error("❌ Erro ao enviar HTML via FTP:", ftpError);
+      throw ftpError;
+    } finally {
+      client.close();
+      await fs.unlink(tempPath).catch(() => { });
+    }
+
+    // 4️⃣ Retorna sucesso
+    res.json({
+      success: true,
+      message: `Subdomínio ${subdominio}.sitexpres.com.br criado e HTML enviado com sucesso!`,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao criar subdomínio de teste:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erro ao criar o subdomínio de teste.",
+      detalhes: error.message,
+    });
+  }
+};
+
+
+export const list_don = async (req, res) => {
+  try {
+    const existe = await subdominioExiste("finalmengal", "sitexpres.com.br");
+
+    console.log("----- RESULTADO -----");
+    console.log(existe);
+    console.log("---------------------");
+
+    return res.status(200).json({ existe });
+  } catch (err) {
+    console.error("Erro ao listar domínios:", err.message);
+    return res.status(500).json({ error: "Erro ao consultar subdomínio." });
+  }
+};
+
