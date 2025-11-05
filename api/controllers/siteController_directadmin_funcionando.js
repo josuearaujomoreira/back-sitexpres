@@ -28,90 +28,112 @@ function limparRetorno(codigo) {
   return codigo.trim();
 }
 
-export async function gerarParte(prompt, parte, req, id_projeto, baseHTML = "") {
+export async function gerarParte(prompt, parte, req, id_projeto) {
+
   const agora = new Date();
   const ano = agora.getFullYear();
 
+
   try {
-    // 🔹 Detecta se é criação inicial ou edição
-    const isEditing = baseHTML && baseHTML.trim().length > 0;
+    /* const systemPrompt = `
+      Você é um designer e desenvolvedor profissional de sites modernos.
+      Crie um site completo baseado na descrição: "${prompt}".
+      Use HTML5, CSS3 moderno e JavaScript funcional.
+      O site deve ser responsivo e em português.
 
-    // 🔹 Prompt principal da IA — com SEO e boas práticas
-    const systemPromptBase = `
-    Você é um designer e desenvolvedor web profissional, especialista em SEO técnico e performance.
-    Gere código HTML5 completo, responsivo e otimizado em português do Brasil.
+      **  *** 
 
-    Regras obrigatórias:
-    1. O retorno deve ser **apenas código HTML** (sem markdown, sem explicações).
-    2. O site deve ser semântico (header, nav, main, footer, etc.).
-    3. Inclua meta tags completas (title, description, canonical, OpenGraph, Twitter Card, hreflang pt-BR).
-    4. Todas as imagens devem ter alt descritivo e srcset/sizes apropriados.
-    5. Utilize placeholders relevantes (source.unsplash.com/random/800x600?<tema>).
-    6. O rodapé deve conter o ano atual (${ano}) atualizado dinamicamente via JS (<span id="ano"></span> + script).
-    7. Utilize apenas HTML, CSS e JS puro (sem frameworks).
+      ***Instruções Cruciais para Imagens e Conteúdo:***
+      1. **Imagens:** Inclua placeholders de alta qualidade relacionados ao tema. Para garantir relevância, use serviços de placeholder que permitem temas (ex: source.unsplash.com/random/800x600?car,sport ou via.placeholder.com/800x600?text=Nome+do+Item).
+      2. **ALT:** O texto ALT de todas as imagens deve ser sempre **muito descritivo** do que a imagem representa para evitar confusão se a imagem falhar.
+      3. **Rodapé:** O ano no rodapé (copyright) deve ser **o ano atual é`+ ano + `**.
 
-    ⚠️ Regras adicionais:
-    - O HTML deve ser coerente com o prompt do cliente.
-    - **Nunca remova** elementos (imagens, textos, seções) existentes, a menos que o prompt peça claramente.
-    - **Mantenha todas as imagens, textos e estrutura** que não foram mencionados como alterados.
-    `;
+      ⚠️ Responda apenas com código HTML puro, sem markdown nem explicações.
+      `;
+ */
+    const systemPrompt2 = `
+Você é um designer e desenvolvedor web profissional, especialista em SEO técnico e conteúdo otimizado para motores de busca.
+Crie um site completo e responsivo em português brasileiro baseado na descrição: "${prompt}".
+Use HTML5 semântica, CSS moderno (mobile-first) e JavaScript funcional mínimo necessário.
+Priorize desempenho, acessibilidade e melhores práticas de SEO on-page e técnico.
 
-    // 🔹 Se estiver editando, insere o HTML base no contexto
-    const systemPrompt = isEditing
-      ? `${systemPromptBase}
+### Regras obrigatórias de saída
+1. Responda **apenas** com código HTML puro (sem markdown, explicações ou comentários que não sejam HTML).
+2. O HTML deve ser pronto para uso (head + body completos) e conter exemplos de conteúdo realistas baseados na descrição.
+3. Inclua no head: título otimizado, meta description (120–160 caracteres), meta robots (index, follow por padrão), viewport, charset UTF-8 e tag canonical.
+4. Implemente tags Open Graph e Twitter Card com títulos e descrições coerentes.
+5. Adicione JSON-LD (Schema.org) adequado ao contexto (Organization, WebSite, BreadcrumbList e, quando fizer sentido, LocalBusiness / Product / Article).
+6. Inclua um sitemap.xml gerável (insira um comentário HTML indicando a estrutura ou um snippet XML embutido como exemplo) e um exemplo de robots.txt (comentado em HTML).
+7. Garanta hreflang="pt-BR" e atributo lang="pt-BR" no elemento html.
+8. Use marcação semântica (header, nav, main, article, section, aside, footer) e headings hierárquicos (h1 único por página).
+9. Todas as imagens devem usar srcset/sizes e atributos width/height, além de alt descritivo (muito específico).
+10. Use imagens placeholder temáticas (ex: source.unsplash.com/random/800x600?<termos>) e alt completos.
+11. Inclua atributos para performance: preload crítico (fonts/hero-image), rel=preconnect quando aplicável, lazy loading para imagens não-críticas (loading="lazy").
+12. Forneça exemplos de otimização de recursos: CSS crítico inline mínimo, link para stylesheet externo minificado, e uso de defer/async para scripts quando aplicável.
+13. Inclua metadados para Core Web Vitals (dicas inline para LCP, CLS — ex.: evitar layout shift com dimensões fixas).
+14. Forneça markup para breadcrumbs visíveis e seu JSON-LD correspondente.
+15. Insira um rodapé com ano atual dinâmico via JavaScript:
+    <script>document.getElementById('ano').textContent = new Date().getFullYear()</script>
+    e no HTML: <span id="ano"></span>
+16. Inclua exemplos de links internos relevantes (menu + links contextuais) para melhorar arquitetura de informação.
+17. Gere uma versão de amostra de uma página principal (index) com pelo menos 300–600 palavras de conteúdo original e natural, contendo palavras-chave relevantes (sem keyword stuffing) e chamadas à ação claras.
+18. Indique (em comentários HTML) onde e como gerar sitemaps dinâmicos, arquivos robots.txt e implementações de canonical em múltiplas páginas.
+19. Sugira (também em comentários HTML) práticas adicionais a implementar no servidor: HTTPS obrigatório, headers de segurança (HSTS, Content-Security-Policy), compressão (gzip/brotli) e cache-control.
+21. Produza meta tags de rich preview (OpenGraph/Twitter) e markup de dados estruturados que respeitem o contexto do prompt.
+22. Texto e estrutura devem seguir boas práticas de acessibilidade: atributos aria quando necessário, contraste de cores, foco visível e navegação por teclado.
 
-Você está editando um site já existente.  
-HTML atual:
-${baseHTML}
-
-Solicitação do cliente:
-${prompt}
-
-🧠 Instruções:
-- Apenas modifique, adicione ou substitua o que foi pedido no prompt.
-- Não apague ou altere conteúdo que não foi mencionado.
-- Preserve todas as imagens, seções e estilos atuais.
-- Retorne o HTML completo atualizado.`
-      : `${systemPromptBase}
-
-Descrição do site:
-${prompt}
-
-🧠 Gere o HTML completo seguindo todas as boas práticas acima.`;
+⚠️ Lembre-se: **sem** explicações no retorno — apenas o arquivo HTML final pronto para uso que contenha tudo acima implementado de forma coerente com a descrição fornecida  e não removar imagem se já tiver alguma já adicionado de acordo com o prompt do cliente.
+`;
 
     let html = "";
 
-    // ✅ Seleciona modelo de IA
     if (USE_GEMINI) {
+      // 🧠 Gemini 2.5 PRO
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
       const result = await model.generateContent(systemPrompt);
       html = result.response.text();
       return limparRetorno(html);
     } else {
+      // ✅ Claude com Messages API moderna (streaming)
       const stream = await anthropic.messages.stream({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 22000,
-        system: "Você é um especialista em HTML, CSS e SEO. Sempre gere apenas código HTML puro.",
-        messages: [{ role: "user", content: systemPrompt }],
+        system: "Você é um assistente especialista em criação de sites modernos e responsivos. Sempre gere código HTML, CSS e JS puro.",
+        messages: [
+          {
+            role: "user",
+            content: systemPrompt,
+          },
+        ],
       });
 
+      // ✅ Recebe os chunks do stream corretamente
       for await (const event of stream) {
+        console.log("EVENT:", event.type, event.delta?.text?.slice(0, 50)); // mostra início do chunk
         if (event.type === "content_block_delta" && event.delta?.text) {
           html += event.delta.text;
+          console.log("📥 Chunk adicionado, tamanho atual do HTML:", html.length);
         }
       }
 
-      console.log("##==> HTML FINAL GERADO:", html.slice(0, 500)); // debug
+      console.log('##==> INICIO HTML GERAL')
+      console.log(html)
+      console.log('##==> FIM HTML GERAL')
+
       return limparRetorno(html);
     }
+
+
   } catch (error) {
     console.error("Erro ao gerar parte do site:", error);
+
+    // ✅ Logs mais claros pra debug
     if (error?.error?.message) console.error("Mensagem do modelo:", error.error.message);
     if (error?.requestID) console.error("ID da requisição:", error.requestID);
+
     return "<!-- Erro ao gerar conteúdo -->";
   }
 }
-
 
 
 // Função principal combinada
@@ -165,7 +187,7 @@ export const newsite = async (req, res) => {
           : fullPrompt;
 
         // Gera HTML
-        const html = await gerarParte(finalPrompt, "HTML", req, id_projeto, baseHTML); //'<h1>Sitee script gerado por IA</h1>' //
+        const html = await gerarParte(finalPrompt, "HTML", req, id_projeto); //'<h1>Sitee script gerado por IA</h1>' //
 
         // Gera nome do subdomínio via IA
         let nomeSubdominio;
@@ -227,66 +249,17 @@ export const jobStatus = (req, res) => {
 };
 
 export const getSites = async (req, res) => {
-
-  let client;
-
-
-
-
   try {
-    client = await pool.connect();
-    /*  const result = await pool.query(
-       "SELECT id, name, prompt, views, created_at FROM generated_sites WHERE user_id = $1 ORDER BY created_at DESC",
-       [req.userId]
-     ); */
     const result = await pool.query(
-      `SELECT DISTINCT ON (id_projeto)
-            id,
-            name,
-            prompt,
-            views,
-            created_at,
-            html_content,
-            subdominio,
-            id_projeto
-        FROM generated_sites
-        WHERE user_id = $1
-        ORDER BY id_projeto, created_at DESC`,
+      "SELECT id, name, prompt, views, created_at FROM generated_sites WHERE user_id = $1 ORDER BY created_at DESC",
       [req.userId]
     );
-
     res.json({ success: true, sites: result.rows });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Erro ao buscar sites" });
   }
 };
-
-export const getPromts = async (req, res) => {
-  let client;
-
-  try {
-    client = await pool.connect();
-
-    const { id_projeto } = req.params;
-
-    const result = await pool.query(
-      `SELECT id_projeto, prompt, created_at
-       FROM public.site_prompts
-       WHERE id_projeto = $1
-       ORDER BY created_at DESC`,
-      [id_projeto]
-    );
-
-    res.json({ success: true, prompts: result.rows });
-  } catch (error) {
-    console.error("Erro ao buscar prompts:", error);
-    res.status(500).json({ success: false, message: "Erro ao buscar prompts" });
-  } finally {
-    if (client) client.release();
-  }
-};
-
 
 //Check se id _projeto já existe
 export const check_id_projeto = async (req, res) => {
@@ -476,32 +449,5 @@ export const list_don = async (req, res) => {
 
 
 export const get_dominio = async (req, res) => {
-  const { id_projeto } = req.params;
-  let client;
 
-  try {
-    client = await pool.connect();
-
-    const result = await client.query(
-      "SELECT subdominio FROM generated_sites WHERE id_projeto = $1 LIMIT 1",
-      [id_projeto]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Subdomínio não encontrado." });
-    }
-
-    const { subdominio } = result.rows[0];
-
-    // Retorna também a URL completa, se quiser
-    return res.json({
-      subdominio,
-      url: `https://${subdominio}.sitexpres.com.br`,
-    });
-  } catch (error) {
-    console.error("Erro ao buscar subdomínio:", error);
-    return res.status(500).json({ error: "Erro interno ao buscar subdomínio." });
-  } finally {
-    if (client) client.release(); // 🔥 importante para evitar vazamento de conexão
-  }
-};
+}

@@ -12,7 +12,7 @@ const app = express();
 // Middlewares globais
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:8080', 'https://seusitefrontend.com', 'https://back.sitexpres.com.br', 'https://site-ai-launchpad.lovable.app'],
+  origin: ['http://localhost:8080', 'https://seusitefrontend.com', 'https://app.sitexpres.com.br', 'https://back.sitexpres.com.br', 'https://site-ai-launchpad.lovable.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -33,6 +33,7 @@ app.get("/dbtest", async (req, res) => {
 app.use("/api/reset-password", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
+ 
 
 
 const __filename = fileURLToPath(import.meta.url);
