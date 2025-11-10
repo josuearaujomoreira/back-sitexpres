@@ -12,12 +12,13 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendPasswordResetEmail = async (to, assunto, mensagem) => {
+export const sendMail = async (to, assunto, mensagem) => {
   /* const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`; */
-  
+
+
   const mailOptions = {
-    from: process.env.MAIL_FROM,
-    to,
+    from: 'Sitexpress <' + process.env.MAIL_FROM + '>',
+    to: to,
     subject: assunto,
     html: mensagem
   };

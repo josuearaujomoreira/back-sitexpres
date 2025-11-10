@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
-import { sendPasswordResetEmail } from "../services/emailService.js";
+import { sendMail } from "../services/emailService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "seu_secret_aqui_MUDE_EM_PRODUCAO";
 
@@ -22,6 +22,25 @@ export const register = async (req, res) => {
 
     const user = result.rows[0];
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+
+
+    const result_email = await pool.query(
+      "SELECT * FROM email_templates WHERE name = $1 LIMIT 1",
+      ['welcome']
+    );
+
+
+    // Conteúdo do HTML vindo do banco
+    let texto_email = result_email.rows[0].body;
+
+    // Substitui o placeholder pelo link real
+    // Pega o primeiro nome do usuário
+    const firstName = user.name.split(' ')[0];
+    const texto_email_editado = texto_email.replace(/{{user_name}}/g, firstName);
+
+    // Envia o e-mail
+    await sendMail(user.email, 'Bem vindo(a)!', texto_email_editado);
+
 
     res.json({ success: true, token, user });
   } catch (error) {
@@ -117,7 +136,7 @@ export const resetpasswd = async (req, res) => {
     const texto_email_editado = texto_email.replace(/\[link_reset\]/g, link_recover);
 
     // Envia o e-mail
-    await sendPasswordResetEmail(user.email, 'Recuperação de Senha', texto_email_editado);
+    await sendMail(user.email, 'Recuperação de Senha', texto_email_editado);
 
     res.json({
       success: true,
