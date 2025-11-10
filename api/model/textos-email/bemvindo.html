@@ -1,0 +1,102 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Siteexpress — Bem-vindo</title>
+  <style>
+    body,table,td,a{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+    table,td{ mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    img{ -ms-interpolation-mode:bicubic; }
+
+    body{ margin:0; padding:0; width:100% !important; background-color:#f3f4f6; font-family:'Inter',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif; color:#0f172a; }
+    .email-wrap{ width:100%; max-width:680px; margin:32px auto; background:#ffffff; border-radius:14px; box-shadow:0 6px 28px rgba(0,0,0,0.08); overflow:hidden; }
+
+    /* Cabeçalho */
+    .header{ padding:28px; display:flex; align-items:center; gap:16px; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:#fff; }
+    .logo{ width:60px; height:60px; border-radius:12px; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:22px; }
+    .brand{ font-size:20px; font-weight:700; letter-spacing:0.3px; }
+    .small-head{ font-size:14px; color:rgba(255,255,255,0.8); }
+
+    .content{ padding:28px; }
+    h1{ margin:0 0 12px 0; font-size:24px; color:#1e293b; }
+    p{ margin:0 0 12px 0; line-height:1.6; color:#334155; }
+
+    .hero{ background:#f8fafc; padding:18px; border-radius:8px; margin-bottom:16px; border:1px solid #e2e8f0; }
+
+    .btn{ display:inline-block; padding:12px 20px; border-radius:10px; text-decoration:none; font-weight:600; transition:all .25s ease; }
+    .btn-primary{ background:linear-gradient(90deg,#7c3aed,#06b6d4); color:#fff; box-shadow:0 2px 6px rgba(124,58,237,0.3); }
+    .btn-primary:hover{ opacity:.9; }
+
+    .small{ font-size:13px; color:#64748b; }
+
+    /* Rodapé */
+    .footer{ padding:28px 20px; background:#0f172a; color:#cbd5e1; text-align:center; font-size:13px; }
+    .footer .brand-footer{ font-weight:600; color:#fff; font-size:15px; margin-bottom:10px; display:block; }
+    .socials{ display:flex; gap:14px; justify-content:center; margin:14px 0; }
+    .socials a img{ width:26px; height:26px; transition:opacity .3s ease; }
+    .socials a:hover img{ opacity:0.8; }
+    .footer a{ color:#a78bfa; text-decoration:none; }
+    .footer a:hover{ text-decoration:underline; }
+
+    @media (max-width:480px){
+      .header{ flex-direction:column; text-align:center; }
+      .content{ padding:20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preheader">Bem-vindo ao Siteexpress — crie sites com IA. Instruções de acesso e recuperação de senha adiante.</div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td align="center">
+        <div class="email-wrap">
+
+          <!-- Cabeçalho -->
+          <div class="header">
+            <div class="logo">SX</div>
+            <div>
+              <div class="brand">Siteexpress</div>
+              <div class="small-head">Criação de sites com IA • Conteúdo para redes sociais</div>
+            </div>
+          </div>
+
+          <!-- Conteúdo principal -->
+          <div class="content">
+            <h1>Seja bem-vindo(a), {{user_name}}!</h1>
+            <p>Obrigado por escolher o <strong>Siteexpress</strong> para criar seu site com Inteligência Artificial. Estamos prontos para ajudar você a ter presença online profissional e conteúdo de impacto para suas redes sociais.</p>
+
+            <div class="hero">
+              <p class="small"><strong>O que oferecemos:</strong> criação instantânea de sites com IA, integração automatizada e suporte humano dedicado.</p>
+              <p class="small">Comece agora com um clique:</p>
+              <a href="https://app.sitexpres.com.br" class="btn btn-primary">Acessar meu painel</a>
+            </div>
+          </div>
+
+          <!-- Rodapé -->
+          <div class="footer">
+            <span class="brand-footer">Siteexpress</span>
+            <div class="socials">
+              <a href="https://x.com/sitexpres" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" alt="X">
+              </a>
+              <a href="https://www.instagram.com/sitexpres/" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram">
+              </a>
+              <a href="https://www.youtube.com/@sitexpres" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube">
+              </a>
+              <a href="https://www.linkedin.com/company/sitexpres/" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn">
+              </a>
+            </div>
+            <div>Telefone: <a href="tel:+5511999999999">(11) 99999-9999</a> • Email: <a href="mailto:suporte@siteexpress.com.br">suporte@siteexpress.com.br</a></div>
+            <div style="margin-top:8px;">Rua Exemplo, 123 — São Paulo, SP • CNPJ 00.000.000/0000-00</div>
+          </div>
+
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
