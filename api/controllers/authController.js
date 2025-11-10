@@ -132,3 +132,46 @@ export const resetpasswd = async (req, res) => {
 export const confirmResetPassword = async (req, res) => {
 
 }
+
+
+// No seu authController.js
+ 
+export const verifyToken = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token não fornecido'
+      });
+    }
+
+    // Valida o token usando a constante JWT_SECRET já definida
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Usa pool ao invés de db
+    const user = await pool.query(
+      'SELECT id, name, email FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: user.rows[0]
+    });
+
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: 'Token inválido ou expirado'
+    });
+  }
+};
