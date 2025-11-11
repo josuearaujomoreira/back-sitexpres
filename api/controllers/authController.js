@@ -132,7 +132,7 @@ export const resetpasswd = async (req, res) => {
     let texto_email = result_email.rows[0].body;
 
     // Substitui o placeholder pelo link real
-    const link_recover = `https://app.sitexpres.com.br/${resetToken}`;
+    const link_recover = `https://app.sitexpres.com.br/reset-password/${resetToken}`;
     const texto_email_editado = texto_email.replace(/\[link_reset\]/g, link_recover);
 
     // Envia o e-mail
@@ -153,8 +153,68 @@ export const resetpasswd = async (req, res) => {
 };
 
 export const confirmResetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
 
-}
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Token e nova senha são obrigatórios.",
+      });
+    }
+
+    // 1️⃣ Verifica e decodifica o token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: "Token inválido ou expirado.",
+      });
+    }
+
+    // 2️⃣ Busca o token no banco
+    const tokenResult = await pool.query(
+      "SELECT * FROM password_reset_tokens WHERE user_id = $1 AND token = $2 AND used = false AND expires_at > NOW()",
+      [decoded.userId, token]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Token inválido ou já utilizado.",
+      });
+    }
+
+    // 3️⃣ Criptografa a nova senha
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 4️⃣ Atualiza a senha do usuário
+    await pool.query(
+      "UPDATE users SET password_hash = $1 WHERE id = $2",
+      [hashedPassword, decoded.userId]
+    );
+
+    // 5️⃣ Marca o token como usado
+    await pool.query(
+      "UPDATE password_reset_tokens SET used = true WHERE token = $1",
+      [token]
+    );
+
+    res.json({
+      success: true,
+      message: "Senha alterada com sucesso!",
+    });
+
+  } catch (error) {
+    console.error("❌ Erro em confirmResetPassword:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao redefinir senha.",
+    });
+  }
+};
 
 
 // No seu authController.js
