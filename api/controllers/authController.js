@@ -63,7 +63,21 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Email ou senha incorretos" });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-    res.json({ success: true, token, user: { id: user.id, name: user.name, email: user.email } });
+
+    //verificando permisão
+    const role = await pool.query(
+      'SELECT role FROM user_roles WHERE user_id = $1',
+      [user.id]
+    );
+
+    res.json(
+      {
+        success: true,
+        token,
+        user: { id: user.id, name: user.name, email: user.email },
+        role: role.rows[0]?.role || 'user'
+      }
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Erro ao fazer login" });
