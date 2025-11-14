@@ -64,18 +64,14 @@ export const login = async (req, res) => {
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
-    //verificando permisão
-    const role = await pool.query(
-      'SELECT role FROM user_roles WHERE user_id = $1',
-      [user.id]
-    );
+
 
     res.json(
       {
         success: true,
         token,
-        user: { id: user.id, name: user.name, email: user.email },
-        role: role.rows[0]?.role || 'user'
+        user: { id: user.id, name: user.name, email: user.email }
+
       }
     );
   } catch (error) {
