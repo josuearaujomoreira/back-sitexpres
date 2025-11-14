@@ -173,6 +173,32 @@ export const newsite = async (req, res) => {
           nomeSubdominio = await gerarNomeSubdominio(prompt);
           // Cria subdomínio no DirectAdmin
           await criarSubdominioDirectAdmin(nomeSubdominio, "sitexpres.com.br");
+
+          // Colocar site na tabela de sites
+          //Colunas  credits_used,status, metadata pode vim null e title pegar o mesmo do site_name
+          // Insere site na tabela 'sites' do painel admin
+          const siteUrl = `https://${nomeSubdominio}.sitexpres.com.br`;
+          const siteName = `Site de ${nomeSubdominio}`;
+
+          await client.query(
+            `INSERT INTO sites 
+              (user_id, site_name, site_url, credits_used, status, metadata)
+              VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              userId,                    // user_id
+              siteName,                  // site_name (mesmo valor que vai para generated_sites)
+              siteUrl,                   // site_url (URL completa do site)
+              10,                        // credits_used (pode ajustar o valor)
+              'active',                  // status
+              JSON.stringify({           // metadata (pode adicionar info útil)
+                id_projeto: id_projeto,
+                subdominio: nomeSubdominio,
+                created_by: 'ai_generation'
+              })
+            ]
+          );
+
+
         } else {
           nomeSubdominio = existing.rows[0].name.replace("Site de ", "").toLowerCase();
         }
@@ -229,10 +255,7 @@ export const jobStatus = (req, res) => {
 export const getSites = async (req, res) => {
 
   let client;
-
-
-
-
+  
   try {
     client = await pool.connect();
     /*  const result = await pool.query(
