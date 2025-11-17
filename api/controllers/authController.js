@@ -70,7 +70,11 @@ export const login = async (req, res) => {
       {
         success: true,
         token,
-        user: { id: user.id, name: user.name, email: user.email }
+        user: {
+          id: user.id, name: user.name,
+          email: user.email,
+          status: user.blocked
+        }
 
       }
     );
