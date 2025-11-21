@@ -4,6 +4,7 @@ import 'dotenv/config';
 import pool from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import siteRoutes from "./routes/siteRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -33,6 +34,7 @@ app.get("/dbtest", async (req, res) => {
 app.use("/api/reset-password", authRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
+app.use("/api/user", userRoutes);
  
  
 

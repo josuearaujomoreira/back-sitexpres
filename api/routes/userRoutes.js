@@ -16,7 +16,7 @@ router.get("/subscription", authMiddleware, async (req, res) => {
         const result = await client.query(
             `SELECT plan, is_active, expires_at 
        FROM user_subscriptions 
-       WHERE user_id = $1`,
+       WHERE user_id = $1 and is_active = true`,
             [req.userId]
         );
 
