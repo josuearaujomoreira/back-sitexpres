@@ -333,7 +333,6 @@ export const getPromts = async (req, res) => {
   }
 };
 
-
 //Check se id _projeto já existe
 export const check_id_projeto = async (req, res) => {
   // 1. Obter o ID do projeto dos parâmetros da rota
@@ -381,7 +380,6 @@ export const check_id_projeto = async (req, res) => {
   }
 };
 
-
 export async function gerarNomeSubdominio(prompt) {
   try {
     const systemPrompt = `
@@ -412,7 +410,6 @@ export async function gerarNomeSubdominio(prompt) {
     return prompt.toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 15);
   }
 }
-
 
 export const testecret_domin = async (req, res) => {
   try {
@@ -504,7 +501,6 @@ export const testecret_domin = async (req, res) => {
   }
 };
 
-
 export const list_don = async (req, res) => {
   try {
     const existe = await subdominioExiste("finalmengal", "sitexpres.com.br");
@@ -519,7 +515,6 @@ export const list_don = async (req, res) => {
     return res.status(500).json({ error: "Erro ao consultar subdomínio." });
   }
 };
-
 
 export const get_dominio = async (req, res) => {
   const { id_projeto } = req.params;
@@ -551,7 +546,6 @@ export const get_dominio = async (req, res) => {
     if (client) client.release(); // 🔥 importante para evitar vazamento de conexão
   }
 };
-
 
 export const restauracao_versao = async (req, res) => {
   try {
@@ -610,11 +604,43 @@ export const restauracao_versao = async (req, res) => {
       [id_projeto]
     );
 
-    const html_new = resultado.rows[0]?.html_content || "<h5>Nenhum HTML encontrado</h5>";
+    const html_new = resultado.rows[0]?.html_content || "<h5>Nenhum HTML encontrado</h5><br>erro:@$231";
+
+    //##########
+    //Fazendo Updade na hospedagem ou subdomínio
+
+
+
+    const dados_sites = await pool.query(
+      `SELECT site_url FROM public.sites
+   WHERE id_projeto = $1`,
+      [id_projeto]
+    );
+
+    let site_url = dados_sites.rows[0]?.site_url;
+
+    let subdominio = "";
+
+    if (site_url) {
+      const url = new URL(site_url);
+      subdominio = url.host; // retorna apenas taskmark.sitexpres.com.br
+    }
+
+    console.log("Subdomínio ==> " + subdominio);
+
+    await enviarHTMLSubdominio(
+      "ftp.sitexpres.com.br",
+      process.env.user_directamin,
+      process.env.pass_directamin,
+      subdominio,
+      html_new
+    );
+
+    //--------------------
 
     return res.json({
       success: true,
-      message: "Versão restaurada com sucesso",
+      message: "Versão restaurada com sucesso!",
       html_new: html_new
     });
 
@@ -633,3 +659,8 @@ export const restauracao_versao = async (req, res) => {
     });
   }
 };
+
+
+export const send_projeto_para_github = async (req, res) => {
+
+}

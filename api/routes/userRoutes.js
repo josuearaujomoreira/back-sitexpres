@@ -6,8 +6,8 @@ const router = express.Router();
 router.get("/subscription", authMiddleware, async (req, res) => {
 
 
- console.log("🔑 req.user:", req.user);
- console.log("🔑 req.user:", req.user);
+ //console.log("🔑 req.user:", req.user);
+ //console.log("🔑 req.user:", req.user);
 
     let client;
 
