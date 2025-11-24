@@ -147,7 +147,7 @@ export const newsite = async (req, res) => {
         // Verifica se já existe site gerado
         const existing = await client.query(
           `SELECT id, name, html_content FROM generated_sites 
-           WHERE id_projeto = $1 
+           WHERE id_projeto = $1 and status = 'ativo'
            ORDER BY created_at DESC LIMIT 1`,
           [id_projeto]
         );
@@ -182,8 +182,8 @@ export const newsite = async (req, res) => {
 
           await client.query(
             `INSERT INTO sites 
-              (user_id, site_name, site_url, credits_used, status, metadata)
-              VALUES ($1, $2, $3, $4, $5, $6)`,
+              (user_id, site_name, site_url, credits_used, status, metadata,id_projeto)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               userId,                    // user_id
               siteName,                  // site_name (mesmo valor que vai para generated_sites)
@@ -194,7 +194,8 @@ export const newsite = async (req, res) => {
                 id_projeto: id_projeto,
                 subdominio: nomeSubdominio,
                 created_by: 'ai_generation'
-              })
+              }),
+              id_projeto
             ]
           );
 
@@ -203,19 +204,40 @@ export const newsite = async (req, res) => {
           nomeSubdominio = existing.rows[0].name.replace("Site de ", "").toLowerCase();
         }
 
-        // Insere registro no banco
-        const insertSite = await client.query(
-          `INSERT INTO generated_sites 
-           (user_id, name, prompt, html_content, id_projeto, image_path,subdominio)
-           VALUES ($1, $2, $3, $4, $5, $6 ,$7)
-           RETURNING id, name, prompt, html_content, created_at`,
-          [userId, `Site de ${nomeSubdominio}`, prompt, html, id_projeto, imageURL, nomeSubdominio]
+
+        //  Marca todos os registros existentes como inativos
+        await client.query(
+          `UPDATE generated_sites 
+            SET status = 'inativo'
+            WHERE id_projeto = $1`,
+          [id_projeto]
         );
 
         await client.query(
-          `INSERT INTO site_prompts (user_id, id_projeto, prompt)
-           VALUES ($1, $2, $3)`,
-          [userId, id_projeto, prompt]
+          `UPDATE site_prompts 
+        SET status = 'inativo'
+        WHERE id_projeto = $1`,
+          [id_projeto]
+        );
+
+
+
+        // Insere registro no banco
+        const insertSite = await client.query(
+          `INSERT INTO generated_sites 
+           (user_id, name, prompt, html_content, id_projeto, image_path,subdominio,status)
+           VALUES ($1, $2, $3, $4, $5, $6 ,$7, $8)
+           RETURNING id, name, prompt, html_content, created_at`,
+          [userId, `Site de ${nomeSubdominio}`, prompt, html, id_projeto, imageURL, nomeSubdominio, 'ativo']
+        );
+
+        // pega o ID recém inserido
+        const novoId = insertSite.rows[0].id;
+
+        await client.query(
+          `INSERT INTO site_prompts (user_id, id_projeto, prompt,id_site_gererate,status)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [userId, id_projeto, prompt, novoId, 'ativo']
         );
 
         // Envia ou atualiza HTML no subdomínio
@@ -255,7 +277,7 @@ export const jobStatus = (req, res) => {
 export const getSites = async (req, res) => {
 
   let client;
-  
+
   try {
     client = await pool.connect();
     /*  const result = await pool.query(
@@ -274,8 +296,9 @@ export const getSites = async (req, res) => {
             id_projeto
         FROM generated_sites
         WHERE user_id = $1
+        AND status = $2
         ORDER BY id_projeto, created_at DESC`,
-      [req.userId]
+      [req.userId, 'ativo']
     );
 
     res.json({ success: true, sites: result.rows });
@@ -294,7 +317,7 @@ export const getPromts = async (req, res) => {
     const { id_projeto } = req.params;
 
     const result = await pool.query(
-      `SELECT id_projeto, prompt, created_at
+      `SELECT id, id_projeto, prompt, created_at,id_site_gererate,status
        FROM public.site_prompts
        WHERE id_projeto = $1
        ORDER BY created_at DESC`,
@@ -526,5 +549,87 @@ export const get_dominio = async (req, res) => {
     return res.status(500).json({ error: "Erro interno ao buscar subdomínio." });
   } finally {
     if (client) client.release(); // 🔥 importante para evitar vazamento de conexão
+  }
+};
+
+
+export const restauracao_versao = async (req, res) => {
+  try {
+    const { id, id_projeto, id_site_gererate } = req.body;
+
+    console.log("Dados recebidos:", { id, id_projeto, id_site_gererate });
+
+    // Colocando todos os site_prompts como inativo
+    await pool.query(
+      `UPDATE public.site_prompts
+       SET status = 'inativo'
+       WHERE id_projeto = $1`,
+      [id_projeto]
+    );
+
+    // Ativando 1 site_prompt específico pelo id
+    await pool.query(
+      `UPDATE public.site_prompts
+       SET status = 'ativo'
+       WHERE id = $1 AND id_projeto = $2`,
+      [id, id_projeto]
+    );
+
+    // Colocando todos os generated_sites como inativo
+    await pool.query(
+      `UPDATE public.generated_sites
+       SET status = 'inativo'
+       WHERE id_projeto = $1`,
+      [id_projeto]
+    );
+
+    // Ativando 1 generated_site específico pelo id
+    await pool.query(
+      `UPDATE public.generated_sites
+       SET status = 'ativo'
+       WHERE id = $1 AND id_projeto = $2`,
+      [id_site_gererate, id_projeto]
+    );
+
+    //Consultado Site
+
+    /*  const resultado = await pool.query(
+          `SELECT * FROM public.sites
+           WHERE id_projeto = $1 
+           AND status = 'ativo'`,
+          [id_projeto]
+        );
+        */
+
+    //Consult html 
+    const resultado = await pool.query(
+      `SELECT html_content 
+       FROM public.generated_sites
+       WHERE id_projeto = $1 
+       AND status = 'ativo'`,
+      [id_projeto]
+    );
+
+    const html_new = resultado.rows[0]?.html_content || "<h5>Nenhum HTML encontrado</h5>";
+
+    return res.json({
+      success: true,
+      message: "Versão restaurada com sucesso",
+      html_new: html_new
+    });
+
+    return res.json({
+      success: true,
+      message: "Versão restaurada com sucesso",
+      html_new: "<h5>o novo aqui</h5>"
+    });
+
+  } catch (error) {
+    console.error("Erro ao restaurar versão:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro interno ao restaurar versão"
+    });
   }
 };
