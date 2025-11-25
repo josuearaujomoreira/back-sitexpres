@@ -5,6 +5,7 @@ import pool from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import siteRoutes from "./routes/siteRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import paymentsRoutes from "./routes/paymentsRoutes.js";
 import githubIntegrationRoutes from "./routes/githubIntegrationRoutes.js";
  
 import path from "path";
@@ -38,6 +39,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/sites", siteRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/integrations/github", githubIntegrationRoutes);
+app.use("/api/pagamento/", paymentsRoutes);
 
  
  

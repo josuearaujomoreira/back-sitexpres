@@ -8,6 +8,7 @@ import ftp from "basic-ftp";
 import { criarSubdominioDirectAdmin, enviarHTMLSubdominio, subdominioExiste } from "./integracao_directadmin.js";
 import dotenv from "dotenv";
 dotenv.config();
+import { updateGitHubIfIntegrated } from "./updateGitHubOnSiteChange.js";
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
@@ -248,6 +249,20 @@ export const newsite = async (req, res) => {
           nomeSubdominio + '.sitexpres.com.br',
           html
         );
+
+        //Fazendo update no github caso já esteja integrado ou já tenha repositório conectado caso não ignore e passe direto
+        const githubResult = await updateGitHubIfIntegrated(
+          userId,
+          id_projeto,
+          html,
+          "Atualização do site via SiteXpress"
+        );
+
+        if (githubResult.updated) {
+          console.log("GitHub atualizado:", githubResult.repoUrl);
+        }
+        //-------------
+
 
         jobs[jobId] = { status: "done", result: insertSite.rows[0], error: null };
 

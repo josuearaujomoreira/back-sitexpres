@@ -11,6 +11,7 @@
     "@anthropic-ai/sdk": "^0.67.0",
     "@google/generative-ai": "^0.14.1",
     "@octokit/rest": "^22.0.1",
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "axios": "^1.7.3",
     "basic-ftp": "^5.0.5",
     "bcrypt": "^6.0.0",

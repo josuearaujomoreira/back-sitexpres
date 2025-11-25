@@ -1,6 +1,8 @@
 import { Octokit } from '@octokit/rest';
 import CryptoJS from 'crypto-js';
-import pool from '../config/db.js';
+
+import pool from "../config/db.js";
+
 
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-secret-key-min-32-chars-long';
@@ -14,7 +16,7 @@ function decrypt(encryptedText) {
   return bytes.toString(CryptoJS.enc.Utf8);
 }
 
-// 1. Iniciar OAuth - redireciona para GitHub
+// 1. Iniciar OAuth - retorna URL de autorização
 export async function authorize(req, res) {
   try {
     const state = Buffer.from(JSON.stringify({
@@ -22,13 +24,16 @@ export async function authorize(req, res) {
       timestamp: Date.now()
     })).toString('base64');
 
+    console.log('==>' + req.userId)
+
     const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
     githubAuthUrl.searchParams.append('client_id', process.env.GITHUB_CLIENT_ID);
     githubAuthUrl.searchParams.append('redirect_uri', process.env.GITHUB_REDIRECT_URI);
     githubAuthUrl.searchParams.append('scope', 'repo user:email');
     githubAuthUrl.searchParams.append('state', state);
 
-    res.redirect(githubAuthUrl.toString());
+    // Retorna JSON com a URL em vez de fazer redirect
+    res.json({ authUrl: githubAuthUrl.toString() });
   } catch (error) {
     console.error('Erro no authorize:', error);
     res.status(500).json({ error: error.message });
@@ -154,14 +159,14 @@ export async function checkConnection(req, res) {
 // 4. Criar repositório (usando OAuth ou token manual)
 export async function createRepo(req, res) {
   try {
-    const { 
+    const {
       githubToken,
-      repoName, 
-      description, 
-      htmlContent, 
+      repoName,
+      description,
+      htmlContent,
       siteName,
       siteId,
-      idProjeto 
+      idProjeto
     } = req.body;
 
     if (!repoName || !htmlContent) {
@@ -213,21 +218,20 @@ export async function createRepo(req, res) {
     // Cria README.md
     const readmeContent = `# ${siteName || repoName}
 
-Este site foi gerado automaticamente pelo [SiteXpress](https://sitexpres.com.br).
+        Este site foi gerado automaticamente pelo [SiteXpress](https://sitexpres.com.br).
 
-## Visualizar o Site
+        ## Visualizar o Site
 
-Acesse: [https://${user.login}.github.io/${repoName}](https://${user.login}.github.io/${repoName})
+        Acesse: [https://${user.login}.github.io/${repoName}](https://${user.login}.github.io/${repoName})
 
-## Habilitar GitHub Pages
+        ## Habilitar GitHub Pages
 
-1. Vá em Settings > Pages
-2. Em "Source", selecione "main" branch
-3. Clique em "Save"
+        1. Vá em Settings > Pages
+        2. Em "Source", selecione "main" branch
+        3. Clique em "Save"
 
----
-Powered by SiteXpress ✨
-`;
+        ---
+        Powered by SiteXpress ✨`;
 
     await octokit.repos.createOrUpdateFileContents({
       owner: user.login,
@@ -236,6 +240,49 @@ Powered by SiteXpress ✨
       message: 'Add README',
       content: Buffer.from(readmeContent).toString('base64')
     });
+
+ 
+    // Buscar id_projeto automaticamente
+    const projectQuery = await pool.query(
+      'SELECT id_projeto FROM generated_sites WHERE id = $1',
+      [siteId]
+    );
+
+    if (projectQuery.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Nenhum id_projeto encontrado para o siteId: ${siteId}`
+      });
+    }
+
+    const idProjetoDB = projectQuery.rows[0].id_projeto;
+
+    const saveIntegrationQuery = `
+  INSERT INTO github_integrations 
+    (user_id, site_id, id_projeto, repo_name, repo_url, repo_full_name)
+  VALUES 
+    ($1, $2, $3, $4, $5, $6)
+  ON CONFLICT (site_id) 
+  DO UPDATE SET
+    repo_name = EXCLUDED.repo_name,
+    repo_url = EXCLUDED.repo_url,
+    repo_full_name = EXCLUDED.repo_full_name,
+    updated_at = CURRENT_TIMESTAMP
+  RETURNING *
+`;
+
+    const integrationResult = await pool.query(saveIntegrationQuery, [
+      req.userId,
+      siteId,
+      idProjetoDB,
+      repoName,
+      repo.html_url,
+      repo.full_name
+    ]);
+
+
+    console.log("✅ Integração GitHub salva:", integrationResult.rows[0]);
+
 
     return res.json({
       success: true,
