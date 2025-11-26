@@ -73,7 +73,8 @@ export const login = async (req, res) => {
         user: {
           id: user.id, name: user.name,
           email: user.email,
-          status: user.blocked
+          status: user.blocked,
+          qtd_credit: user.credits
         }
 
       }
