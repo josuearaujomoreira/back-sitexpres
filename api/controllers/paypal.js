@@ -1,6 +1,10 @@
+// paypal.js
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
+import 'dotenv/config';
 
-const environment = new checkoutNodeJssdk.core.SandboxEnvironment(
+
+// Usa ambiente de produção
+const environment = new checkoutNodeJssdk.core.LiveEnvironment(
   process.env.PAYPAL_CLIENT_ID,
   process.env.PAYPAL_CLIENT_SECRET
 );

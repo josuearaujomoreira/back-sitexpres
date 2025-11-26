@@ -1,3 +1,4 @@
+// controllers/paypalController.js
 import client from './paypal.js';
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
@@ -5,6 +6,7 @@ export async function createOrder(req, res) {
   try {
     const request = new checkoutNodeJssdk.orders.OrdersCreateRequest();
     request.prefer("return=representation");
+
     request.requestBody({
       intent: "CAPTURE",
       purchase_units: [
@@ -16,23 +18,36 @@ export async function createOrder(req, res) {
         }
       ],
       application_context: {
-        return_url: "https://seusite.com/paypal/sucesso",
-        cancel_url: "https://seusite.com/paypal/cancelado"
+        brand_name: "sitexpres.com.br",
+        landing_page: "BILLING",   // força sem conta
+        shipping_preference: "NO_SHIPPING",
+        user_action: "PAY_NOW",
+
+        return_url: "https://back.sitexpres.com.br/api/pagamento/sucesso",
+        cancel_url: "https://back.sitexpres.com.br/api/pagamento/cancelado"
       }
+
     });
 
     const response = await client.execute(request);
 
     return res.json({
       id: response.result.id,
-      approve: response.result.links.find(l => l.rel === "approve").href
+      approve: response.result.links.find(l => l.rel === "approve")?.href
     });
 
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erro ao criar pedido" });
+    console.error("ERRO PAYPAL ======================");
+    console.error(err.response?.result || err);
+    console.error("==================================");
+
+    return res.status(500).json({
+      error: "Erro ao criar pedido",
+      details: err.response?.result || err.message
+    });
   }
 }
+
 
 export async function captureOrder(req, res) {
   try {
