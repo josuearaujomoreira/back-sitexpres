@@ -4,6 +4,8 @@ import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 import fetch from 'node-fetch';
 import 'dotenv/config';
 import pool from "../config/db.js";
+import fs from 'fs/promises';
+import path from 'path';
 
 // ==================== FUNÇÕES AUXILIARES ====================
 
@@ -72,7 +74,7 @@ export async function createOrder(req, res) {
 
     pool.query(
       `
-        INSERT INTO public.transactions (
+      INSERT INTO public.transactions (
           user_id,
           type,
           status,
@@ -545,13 +547,16 @@ export async function subscriptionCancel(req, res) {
 
 // ==================== WEBHOOKS ====================
 
-export async function handleWebhook(req, res) {
+export async function webhook(req, res) {
   const event = req.body;
 
   console.log("\n🔔 Webhook recebido:", event.event_type);
   console.log("Resource ID:", event.resource?.id);
 
   try {
+    // Criar arquivo de log
+    await saveWebhookLog(event);
+
     switch (event.event_type) {
       // Pagamento único
       case 'PAYMENT.CAPTURE.COMPLETED':
@@ -602,4 +607,40 @@ export async function handleWebhook(req, res) {
     console.error("ERRO NO WEBHOOK:", err);
     return res.sendStatus(500);
   }
+}
+
+async function saveWebhookLog(event) {
+  // Criar pasta de logs se não existir
+  const logsDir = path.join(process.cwd(), 'webhook-logs');
+  try {
+    await fs.mkdir(logsDir, { recursive: true });
+  } catch (err) {
+    // Pasta já existe
+  }
+
+  // Gerar nome do arquivo com data e hora
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '');
+  const filename = `webhook_${timestamp}.txt`;
+  const filepath = path.join(logsDir, filename);
+
+  // Formatar conteúdo do log
+  const logContent = `
+      =====================================
+      WEBHOOK RECEBIDO
+      =====================================
+      Data/Hora: ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+      Timestamp: ${now.toISOString()}
+
+      EVENTO: ${event.event_type}
+      Resource ID: ${event.resource?.id || 'N/A'}
+
+      DADOS COMPLETOS:
+      ${JSON.stringify(event, null, 2)}
+      =====================================
+      `;
+
+  // Salvar arquivo
+  await fs.writeFile(filepath, logContent, 'utf8');
+  console.log(`📄 Log salvo em: ${filepath}`);
 }
