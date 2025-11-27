@@ -3,6 +3,7 @@ import client from './paypal.js';
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 import fetch from 'node-fetch';
 import 'dotenv/config';
+import pool from "../config/db.js";
 
 // ==================== FUNÇÕES AUXILIARES ====================
 
@@ -57,6 +58,57 @@ export async function createOrder(req, res) {
 
     const response = await client.execute(request);
 
+    //console.log(response.result)
+
+    //---- inserindo transando no banco como pendente
+
+    var qtd_credito = req.body.qtd_creditos || 10;
+    var valor = req.body.value || "29.90";
+    var typePayment = req.body.tipoPagamento || 'PayPall';
+    var Payment_id = response.result.id || "29.90";
+    var ID_user = req.body.userid || "00";
+    var Url_Pagamento = response.result.links.find(l => l.rel === "approve")?.href || 'Sem URL';
+
+
+    pool.query(
+      `
+        INSERT INTO public.transactions (
+          user_id,
+          type,
+          status,
+          description,
+          credits,
+          monetary_value,
+          payment_method,
+          payment_id,
+          url_payment,
+          value
+        ) VALUES (
+          $1,
+          'purchase_credits',
+          'pending',
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8
+        )
+      `,
+      [
+        ID_user,
+        `Compra de ${qtd_credito} créditos`,
+        qtd_credito,
+        valor,
+        typePayment,
+        Payment_id,
+        Url_Pagamento,
+        valor
+      ]
+    );
+
+
     return res.json({
       id: response.result.id,
       approve: response.result.links.find(l => l.rel === "approve")?.href
@@ -102,9 +154,9 @@ export async function captureOrder(req, res) {
 
   } catch (err) {
     console.error("ERRO AO CAPTURAR:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao capturar pagamento",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -112,12 +164,12 @@ export async function captureOrder(req, res) {
 export async function paymentSuccess(req, res) {
   try {
     const { token } = req.query;
-    
+
     console.log("✅ Pagamento concluído! Order ID:", token);
-    
+
     // Redirecionar para frontend
     return res.redirect(`https://sitexpres.com.br/sucesso?order=${token}`);
-    
+
   } catch (err) {
     console.error("ERRO:", err);
     return res.status(500).send("Erro ao processar pagamento");
@@ -176,9 +228,9 @@ export async function createProduct(req, res) {
 
   } catch (err) {
     console.error("ERRO:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao criar produto",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -263,9 +315,9 @@ export async function createSubscriptionPlan(req, res) {
 
   } catch (err) {
     console.error("ERRO:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao criar plano",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -289,7 +341,7 @@ export async function createSubscription(req, res) {
 
     const subscriptionData = {
       plan_id: process.env.PAYPAL_PLAN_ID,
-      
+
       subscriber: {
         email_address: email,
         name: {
@@ -297,7 +349,7 @@ export async function createSubscription(req, res) {
           surname: surname || "SitExpres"
         }
       },
-      
+
       application_context: {
         brand_name: "sitexpres.com.br",
         //locale: "pt_BR",
@@ -348,9 +400,9 @@ export async function createSubscription(req, res) {
 
   } catch (err) {
     console.error("ERRO AO CRIAR ASSINATURA:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao criar assinatura",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -391,9 +443,9 @@ export async function getSubscriptionStatus(req, res) {
 
   } catch (err) {
     console.error("ERRO AO BUSCAR ASSINATURA:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao buscar assinatura",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -420,14 +472,14 @@ export async function cancelSubscription(req, res) {
 
     if (response.status === 204) {
       console.log("✅ Assinatura cancelada:", subscriptionId);
-      return res.json({ 
+      return res.json({
         success: true,
-        message: "Assinatura cancelada com sucesso" 
+        message: "Assinatura cancelada com sucesso"
       });
     }
 
     const data = await response.json();
-    
+
     if (data.error) {
       return res.status(400).json({
         error: "Erro ao cancelar assinatura",
@@ -439,9 +491,9 @@ export async function cancelSubscription(req, res) {
 
   } catch (err) {
     console.error("ERRO AO CANCELAR ASSINATURA:", err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Erro ao cancelar assinatura",
-      details: err.message 
+      details: err.message
     });
   }
 }
@@ -449,7 +501,7 @@ export async function cancelSubscription(req, res) {
 export async function subscriptionSuccess(req, res) {
   try {
     const { subscription_id, ba_token } = req.query;
-    
+
     console.log("✅ Assinatura aprovada! ID:", subscription_id);
 
     if (!subscription_id) {
@@ -457,7 +509,7 @@ export async function subscriptionSuccess(req, res) {
     }
 
     const token = await getAccessToken();
-    
+
     const response = await fetch(
       `${process.env.PAYPAL_BASE_URL || 'https://api-m.paypal.com'}/v1/billing/subscriptions/${subscription_id}`,
       {
@@ -500,7 +552,7 @@ export async function handleWebhook(req, res) {
   console.log("Resource ID:", event.resource?.id);
 
   try {
-    switch(event.event_type) {
+    switch (event.event_type) {
       // Pagamento único
       case 'PAYMENT.CAPTURE.COMPLETED':
         console.log('✅ Pagamento capturado:', event.resource.amount.value);
