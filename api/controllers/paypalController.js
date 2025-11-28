@@ -181,8 +181,8 @@ export async function paymentSuccess(req, res) {
     } else {
 
       // Check if transaction is pending before adding credits
-      if (payment.rows[0].status === 'pending') {
-        console.log('Pagamento pendente, adicionando créditos ao usuário');
+      if (payment.rows[0].status === 'pending') { 
+        console.log('Pagamento pendente, adicionando créditos ao usuário!');
         //Atualizando o usuario
         await pool.query(
           `UPDATE public.users SET credits = credits + $1 WHERE id = $2`,
