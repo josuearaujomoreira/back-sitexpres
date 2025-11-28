@@ -1,0 +1,23 @@
+
+      =====================================
+      WEBHOOK RECEBIDO
+      =====================================
+      Data/Hora: 28/11/2025, 14:46:37
+      Timestamp: 2025-11-28T17:46:37.640Z
+
+      EVENTO: CHECKOUT.ORDER.APPROVED
+      Resource ID: TEST_ORDER_APPROVED_123
+
+      DADOS COMPLETOS:
+      {
+  "event_type": "CHECKOUT.ORDER.APPROVED",
+  "resource": {
+    "id": "TEST_ORDER_APPROVED_123",
+    "status": "APPROVED",
+    "amount": {
+      "value": "10.00"
+    }
+  }
+}
+      =====================================
+      

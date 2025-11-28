@@ -250,7 +250,7 @@ export const verifyToken = async (req, res) => {
 
     // Usa pool ao invés de db
     const user = await pool.query(
-      'SELECT id, name, email FROM users WHERE id = $1',
+      'SELECT * FROM users WHERE id = $1',
       [decoded.userId]
     );
 

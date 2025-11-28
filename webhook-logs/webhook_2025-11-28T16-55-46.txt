@@ -1,0 +1,23 @@
+
+      =====================================
+      WEBHOOK RECEBIDO
+      =====================================
+      Data/Hora: 28/11/2025, 13:55:46
+      Timestamp: 2025-11-28T16:55:46.321Z
+
+      EVENTO: PAYMENT.CAPTURE.COMPLETED
+      Resource ID: TEST_ID_123
+
+      DADOS COMPLETOS:
+      {
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "resource": {
+    "id": "TEST_ID_123",
+    "status": "completed",
+    "amount": {
+      "value": "10.00"
+    }
+  }
+}
+      =====================================
+      

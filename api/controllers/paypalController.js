@@ -43,7 +43,7 @@ export async function createOrder(req, res) {
         {
           amount: {
             currency_code: "BRL",
-            value: req.body.value || "29.90"
+            value: "0.5" // req.body.value || "29.90"
           },
           description: req.body.description || "Pagamento SitExpres"
         }
@@ -168,6 +168,37 @@ export async function paymentSuccess(req, res) {
     const { token } = req.query;
 
     console.log("✅ Pagamento concluído! Order ID:", token);
+
+    //consultado no banco se existe token para o pagamento
+    const payment = await pool.query(
+      `SELECT * FROM public.transactions where payment_id = $1`,
+      [token]
+    );
+
+    if (payment.rows.length === 0) {
+      console.error("Pagamento não encontrado para o token:", token);
+      return res.status(404).send("Pagamento não encontrado");
+    } else {
+
+      // Check if transaction is pending before adding credits
+      if (payment.rows[0].status === 'pending') {
+        console.log('Pagamento pendente, adicionando créditos ao usuário');
+        //Atualizando o usuario
+        await pool.query(
+          `UPDATE public.users SET credits = credits + $1 WHERE id = $2`,
+          [payment.rows[0].credits, payment.rows[0].user_id]
+        );
+
+        //Fazendo Update no pagamento
+        await pool.query(
+          `UPDATE public.transactions SET status = 'completed' WHERE payment_id = $1`,
+          [token]
+        );
+
+      } else {
+        console.log(`Pagamento ${token} já processado anteriormente. Status atual: ${payment.rows[0].status}`);
+      }
+    }
 
     // Redirecionar para frontend
     return res.redirect(`https://sitexpres.com.br/sucesso?order=${token}`);
@@ -546,7 +577,6 @@ export async function subscriptionCancel(req, res) {
 }
 
 // ==================== WEBHOOKS ====================
-
 export async function webhook(req, res) {
   const event = req.body;
 
@@ -560,8 +590,19 @@ export async function webhook(req, res) {
     switch (event.event_type) {
       // Pagamento único
       case 'PAYMENT.CAPTURE.COMPLETED':
-        console.log('✅ Pagamento capturado:', event.resource.amount.value);
-        // Aqui: ativar acesso imediato
+      case 'CHECKOUT.ORDER.APPROVED':
+        const status = event.resource?.status || '';
+        if (status.toUpperCase() === 'COMPLETED' || status.toUpperCase() === 'APPROVED') {
+          await paymentSuccess(
+            { query: { token: event.resource.id } },
+            {
+              redirect: (url) => console.log(`[Webhook] Redirecionamento simulado para: ${url}`),
+              status: () => ({ send: () => { } }),
+              send: () => { }
+            }
+          );
+        }
+        console.log('✅ Pagamento processado:', event.resource.id);
         break;
 
       case 'PAYMENT.CAPTURE.DENIED':
